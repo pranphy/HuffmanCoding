@@ -1,160 +1,153 @@
+/*******************************//**
+ * \file HOffmanRecursiveOptimized.cpp
+    Author       :@PrakashGautam
+    Date Written :March 20, 2015
+    Last Updated :March 20, 2015
+    Email     :pranphy@gmail.com
+************************************/
+
 #include<bits/stdc++.h>
 
 using namespace std;
 
+#define PROBSUM 10
+
 typedef unsigned ProbType;
 
-class ProbCode {
-public:
-    string Code;
+struct ProbCode {
+    string Code; /*< TODO use vector<bool> here to conserve memory */
     ProbType Prob;
 };
 
 ostream& operator<<(ostream& os,ProbCode p) {
-	cout<<"Prob="<<p.Prob<<" Code=|"<<p.Code<<"| ";
+    cout<<" Prob="<<p.Prob<<" Code=|"<<p.Code<<"|"<<endl;;
     return os;
 }
 
 vector<ProbCode> Initialize(vector<ProbType>);
-
-template<typename T>
-bool Greater(T,T);
+vector<ProbCode> IterateCode(vector<ProbCode>);
+vector<ProbCode> TrimCodes(vector<ProbCode>);
 
 template<typename T>
 void DisplayVector(vector<T> Vector);
 
-vector<ProbCode> IterateCode(vector<ProbCode>);
-
-vector<ProbCode> TrmCodes(vector<ProbCode>);
-
-
-
 int main() {
-    //vector<ProbType> Prob = {40,20,10,20,10};
-    vector<ProbType> Prob = {2500,2500,1250,1250,625,625};
+	/** To avoid floating point comparison  each probability is multiplied
+	 * here by such a power of ten such that the smallest one of them  is
+	 * a whole number. Eg 0.25 is transformed to 25 if it is the least of
+	 * the probabilities. The value of PROBSUM #define'd at   top of this
+	 * file indicates the least such power of ten used to multiply.'*/
+    vector<ProbType> Prob = {625,625,625,625,1250,1250,2500,2500};
     sort(Prob.begin(),Prob.end());
-    vector<ProbCode> Here = Initialize(Prob);
-    DisplayVector(Prob);
-    cout<<endl<<" now here \n"<<endl;
-    DisplayVector(Here);
-    cout<<"\n Trimmed now "<<endl;
-    vector<ProbCode> Trimd = IterateCode(Here);
-    DisplayVector(Trimd);
+    DisplayVector(IterateCode(Initialize(Prob)));
 }
 
 
 
 vector<ProbCode> IterateCode(vector<ProbCode> Codes) {
+    /**
+        This is a recursive implementation of Hoffman Algorithm. We reiterate
+        the process up until  an array  with  just  two probabilities is left.
+        When we are  left  with just two, we (arbitrarily) assign the symbols
+        '0'  and  '1'  to the  last tow of them. When there are more than two
+        add  the last two, and push it up(?) the order in rank and remove the
+        last two,  and  find code for  that new array. When the code for that
+        reduced array is  found, we  find the code  for the added probability
+        from highest,  (Hoffman algorithm  gives least  variance with the sum
+        pushed  highest up the order),  attach  it to the individual ones and
+        for the rest just copy the codes in the order as done before.
+    */
     int Rem = Codes.size();
     vector<ProbCode> RetVec = Codes;
     ProbType LastTwoSum = Codes.at(0).Prob + Codes.at(1).Prob;
+    /** Assign symbols '0' and '1' to the last two*/
     RetVec.at(0).Code = '1';
     RetVec.at(1).Code = '0';
+    /** If only tow are left, check if the sum gives probability 1, and leave */
     if(Rem == 2) {
-		if(LastTwoSum != 100)
-			cout<<" Error: Do not add to 1 as should probability "<<endl;
+        if(LastTwoSum != PROBSUM)
+            cout<<" Error: Do not add to 1 as should probability "<<endl;
+			/** TODO Throw error here instead of cout<<"Error message " */
         return RetVec;
     } else {
-        //cout<<" Rem has "<<Rem<<endl;
-        vector<ProbCode> TrdCodes = TrmCodes(Codes);
-        bool FoundSum = false;
-        //cout<<TrdCodes.size()<<" must be one less than "<<Rem<<endl;
-        //cout<<" Trimmed now "<<endl;
-        vector<ProbCode> RedCodes = IterateCode(TrdCodes);
-        //cout<<" New produced codes apnd prob pari \n";
-        DisplayVector(RedCodes);
-        cout<<" \n========================\n";
+        /**
+            If  more than two are left, find the code for the reduced array,
+            the reduced  array is a new array with the last tow removed and
+            their sum placed in the lexicographic (ascending) order
+        */
+        vector<ProbCode> RedCodes = IterateCode(TrimCodes(Codes));
+
         int RedSize = RedCodes.size();
-		vector<bool> FoundRed(RedSize,false);
-		vector<bool> FoundOrg(Rem,false);
-
-
-		for(int j = RedSize - 1; j >=0; j--) {
-            //cout<<j<<". "<<RedCodes.at(j).Prob<<" pr with code "<<RedCodes.at(j).Code<<endl;
-            //cout<<LastTwoSum<<" == "<<RedCodes.at(j).Prob;
-            cout.precision(15);
-            //if(LastTwoSum == RedCodes.at(j).Prob) cout<<" Passes "<<endl; else cout<< " Fails "<<endl;
-            if(LastTwoSum == RedCodes.at(j).Prob and !FoundSum and !FoundRed.at(j)) {
-                cout<< LastTwoSum<<" found at  "<<j<<"  with code "<<RedCodes.at(j).Code<<" "<<endl;
+        vector<bool> FoundRed(RedSize,false);
+        vector<bool> FoundOrg(Rem,false);
+        bool FoundSum = false;
+        /**
+            For the last two elements in the unreduced array, attach the code
+            of the sum of them in the reduced array. Search from the sum from
+            the top because it will give the least variance codes for symbols
+        */
+        for(int j = RedSize - 1; j >= 0; j--) {
+            if(LastTwoSum == RedCodes.at(j).Prob and
+                    !FoundSum and !FoundRed.at(j)) {
                 RetVec.at(0).Code = RedCodes.at(j).Code + RetVec.at(0).Code;
                 RetVec.at(1).Code = RedCodes.at(j).Code + RetVec.at(1).Code;
                 FoundRed.at(j) = true;
                 FoundSum = true;
                 break;
             }
-
         }
-
+        /**
+            Once code for the sum of them is found, find code for the rest of
+            them and copy codes to them. Then return
+        */
         for(int i = 2; i<Rem; i++) {
-            //cout<<" Trying to find next one "<<endl;
-			for(int j = 0; j< RedSize;j++){
-				//cout<<RetVec.at(i).Prob<<" == "<<RedCodes.at(j).Prob;
-				//if(RetVec.at(i).Prob == RedCodes.at(j).Prob) cout<<" Passes "<<endl; else cout<< " Fails "<<endl;
-				if(RetVec.at(i).Prob == RedCodes.at(j).Prob and !FoundRed.at(j) and !FoundOrg.at(i)){
-                    cout<<"At "<<i<<" Assigning for "<<RetVec.at(i).Prob<<" as code "<<RedCodes.at(j).Code<<endl;
-					RetVec.at(i).Code = RedCodes.at(j).Code;
-					FoundRed.at(j) = true;
-					FoundOrg.at(i) = true;
-					break;
-				}
-			}
+            for(int j = 0; j< RedSize; j++) {
+                if(RetVec.at(i).Prob == RedCodes.at(j).Prob and
+                        !FoundRed.at(j) and !FoundOrg.at(i)) {
+                    RetVec.at(i).Code = RedCodes.at(j).Code;
+                    FoundRed.at(j) = true;
+                    FoundOrg.at(i) = true;
+                    break;
+                }
+            }
         }
-        cout<<" ===============Returnig now=============== \n";
-        DisplayVector(RetVec);
-        cout<<" \n*********************************************** \n";
         return RetVec;
     }
 }
 
-vector<ProbCode> TrmCodes(vector<ProbCode> Codes) {
-	//cout<< "\n ========I am colled here ==== \n ";
-
-    int Size = Codes.size();
-    //cout<<" The size of array is"<< Size<<endl;
-    vector<ProbCode> RetCode;
+/** \brief This function trims the codes for the vector*/
+vector<ProbCode> TrimCodes(vector<ProbCode> Codes) {
+    /**
+        Our job in this function is to add the least (last) two probabilities
+        insert the sum in the array in order (lexicographic here)  and remove
+        the last two elements whose sum we calculated;
+    */
+    /** First find the sum of last two as the least two reside on index 0 and 1*/
     ProbType LastTwoSum = Codes.at(0).Prob + Codes.at(1).Prob;
-    //cout<<" Last two sum is "<<LastTwoSum<<endl;
-    //cout<<" Safe here test "<<endl;
-    bool EqualFlag = false;
-    int k = 0, j = 2;
-    while(j < Size and Codes.at(j).Prob <= LastTwoSum) {
-        //cout<<j<<" is j here \n";
-        RetCode.push_back(Codes.at(j++));
-        //cout<<" Testing for "<<Codes.at(j).Prob<<" Against "<<LastTwoSum<<" Now in the next iteration"<<endl;
-    }
-    //cout<<" Checket all small and equal "<<endl;
-    ProbCode P;
-    P.Prob = LastTwoSum;
-    RetCode.push_back(P);
-    if(j == Size) return RetCode;
-
-    else{
-        for(int t = j; t<Size; t++)
-            RetCode.push_back( Codes.at(t));
-    }
-    return RetCode;
+    auto It = Codes.begin();
+    /**
+        Loop until we find a place where the probability is greater or equal
+        to the sum of the last two elements we just found
+    */
+    // took quite a some time to realize that I needed It < Codes.end() here;
+    for(; It->Prob < LastTwoSum and It < Codes.end(); It++);
+    /** At that position insert the sum probability with no code*/
+    Codes.insert(It,{"",LastTwoSum});//not sure with use of initilizer list here
+    /** And obviously remove the last two elements to get a new array*/
+    Codes.erase(Codes.begin(),Codes.begin()+2);
+    return Codes;
 }
+
 
 vector<ProbCode> Initialize(vector<ProbType> Prob) {
-    int Symbols = Prob.size(), i = 0;
-    vector<ProbCode> Generated(Symbols);
-    for(auto pr : Prob) {
-        Generated.at(i++).Prob = pr;
-    }
-
+    vector<ProbCode> Generated;
+    for(auto pr : Prob)
+        Generated.push_back({"",pr});
     return Generated;
 }
-
-
 
 template <typename T>
 void DisplayVector(vector<T> Vector) {
     for(auto i : Vector)
-        cout<<i<<" ";
-}
-
-
-template<typename T>
-bool Greater(T a, T b) {
-    return a>b;
+        cout<<" "<<i<<" ";
 }
